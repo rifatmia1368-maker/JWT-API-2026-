@@ -264,22 +264,19 @@ async def get_access_token(account: str):
         raise
 
 # =====================================================================
-# uid_generator ব্যবহার করে UID তৈরি করার ফাংশন
+# uid_generator ব্যবহার করে ইন-গেম UID তৈরি করার ফাংশন
 # =====================================================================
-def generate_uid_from_protobuf(uid_str: str) -> dict:
+def generate_uid_from_protobuf(account_id: int) -> dict:
     """
-    uid_generator_pb2 ব্যবহার করে uid জেনারেট করে
+    uid_generator_pb2 ব্যবহার করে ইন-গেম account_id থেকে uid জেনারেট করে
     """
     try:
         # uid_generator এর instance তৈরি করুন
         uid_gen = uid_generator()
         
-        # uid কে integer এ কনভার্ট করুন
-        uid_int = int(uid_str) if uid_str.isdigit() else 0
-        
-        # saturn_ এবং garena ফিল্ড সেট করুন
-        uid_gen.saturn_ = uid_int
-        uid_gen.garena = uid_int
+        # account_id সেট করুন
+        uid_gen.saturn_ = account_id
+        uid_gen.garena = account_id
         
         # ডিক্ট আকারে রিটার্ন করুন
         return {
@@ -295,7 +292,7 @@ def generate_uid_from_protobuf(uid_str: str) -> dict:
         }
 
 # =====================================================================
-# আপডেটেড create_jwt ফাংশন - uid_generator_pb2 ব্যবহার করে
+# আপডেটেড create_jwt ফাংশন - LoginRes থেকে account_id নিয়ে uid_generator ব্যবহার করে
 # =====================================================================
 async def create_jwt(uid: str, password: str):
     try:
@@ -331,19 +328,31 @@ async def create_jwt(uid: str, password: str):
             except Exception as parse_e:
                 logger.error(f"Failed to parse LoginRes protobuf: {parse_e}")
                 raise
+            
             token = msg.get('token', '0')
+            # ===== ইন-গেম account_id বের করুন =====
+            account_id = msg.get('accountId', '0')  # JSON ফরম্যাটে accountId হয়ে যায়
+            
             if token == '0':
                 logger.warning(f"No token received in response: {msg}")
             
-            # ===== uid_generator_pb2 ব্যবহার করে uid তৈরি করুন =====
-            uid_data = generate_uid_from_protobuf(uid)
+            # ===== uid_generator_pb2 ব্যবহার করে ইন-গেম uid তৈরি করুন =====
+            # account_id কে integer এ কনভার্ট করুন
+            try:
+                account_id_int = int(account_id) if account_id and account_id != '0' else 0
+            except (ValueError, TypeError):
+                account_id_int = 0
+                logger.warning(f"Invalid account_id format: {account_id}")
+            
+            in_game_uid_data = generate_uid_from_protobuf(account_id_int)
             
             return {
                 'token': f"{token}",
                 'region': msg.get('lockRegion', '0'),
                 'server_url': msg.get('serverUrl', '0'),
-                'uid': uid,  # ইউজারের দেওয়া uid
-                'uid_generator': uid_data  # uid_generator_pb2 থেকে তৈরি ডেটা
+                'guest_uid': uid,  # ইউজারের দেওয়া guest uid
+                'in_game_account_id': account_id,  # গেমের actual account ID
+                'in_game_uid': in_game_uid_data  # uid_generator_pb2 থেকে তৈরি ইন-গেম uid
             }
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error during JWT creation: {e.response.status_code} - {e.response.text}")
@@ -369,7 +378,7 @@ def get_jwt():
             logger.warning("Missing uid or password in request")
             return jsonify({"error": "Please provide both uid and password."}), 400
         result = asyncio.run(create_jwt(uid, password))
-        logger.info(f"JWT generated successfully for uid: {uid}")
+        logger.info(f"JWT generated successfully for guest uid: {uid}")
         return jsonify(result), 200
     except Exception as e:
         logger.error(f"Error in get_jwt: {e}")
