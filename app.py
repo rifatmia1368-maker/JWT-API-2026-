@@ -24,6 +24,18 @@ except ImportError:
 _sym_db = _symbol_database.Default()
 _globals = globals()
 
+# --- 0. uid_generator_pb2.py (প্রথমে লোড করতে হবে) ---
+DESCRIPTOR_UID = _descriptor_pool.Default().AddSerializedFile(b'\n\x13uid_generator.proto\"0\n\ruid_generator\x12\x0f\n\x07saturn_\x18\x01 \x01(\x03\x12\x0e\n\x06garena\x18\x02 \x01(\x03\x62\x06proto3')
+_builder.BuildMessageAndEnumDescriptors(DESCRIPTOR_UID, _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR_UID, 'uid_generator_pb2', _globals)
+if _descriptor._USE_C_DESCRIPTORS == False:
+    DESCRIPTOR_UID._options = None
+    _globals['_UID_GENERATOR']._serialized_start=23
+    _globals['_UID_GENERATOR']._serialized_end=71
+
+# uid_generator ক্লাসটি globals থেকে নিন
+uid_generator = _globals['uid_generator']
+
 # --- 1. FreeFire_pb2.py ---
 if _runtime_version:
     try:
@@ -251,6 +263,40 @@ async def get_access_token(account: str):
         logger.error(f"Failed to get access token: {e}")
         raise
 
+# =====================================================================
+# uid_generator ব্যবহার করে UID তৈরি করার ফাংশন
+# =====================================================================
+def generate_uid_from_protobuf(uid_str: str) -> dict:
+    """
+    uid_generator_pb2 ব্যবহার করে uid জেনারেট করে
+    """
+    try:
+        # uid_generator এর instance তৈরি করুন
+        uid_gen = uid_generator()
+        
+        # uid কে integer এ কনভার্ট করুন
+        uid_int = int(uid_str) if uid_str.isdigit() else 0
+        
+        # saturn_ এবং garena ফিল্ড সেট করুন
+        uid_gen.saturn_ = uid_int
+        uid_gen.garena = uid_int
+        
+        # ডিক্ট আকারে রিটার্ন করুন
+        return {
+            "saturn_": uid_gen.saturn_,
+            "garena": uid_gen.garena
+        }
+    except Exception as e:
+        logger.error(f"Failed to generate uid from protobuf: {e}")
+        return {
+            "saturn_": 0,
+            "garena": 0,
+            "error": str(e)
+        }
+
+# =====================================================================
+# আপডেটেড create_jwt ফাংশন - uid_generator_pb2 ব্যবহার করে
+# =====================================================================
 async def create_jwt(uid: str, password: str):
     try:
         account = f"uid={uid}&password={password}"
@@ -288,10 +334,16 @@ async def create_jwt(uid: str, password: str):
             token = msg.get('token', '0')
             if token == '0':
                 logger.warning(f"No token received in response: {msg}")
+            
+            # ===== uid_generator_pb2 ব্যবহার করে uid তৈরি করুন =====
+            uid_data = generate_uid_from_protobuf(uid)
+            
             return {
                 'token': f"{token}",
                 'region': msg.get('lockRegion', '0'),
-                'server_url': msg.get('serverUrl', '0')
+                'server_url': msg.get('serverUrl', '0'),
+                'uid': uid,  # ইউজারের দেওয়া uid
+                'uid_generator': uid_data  # uid_generator_pb2 থেকে তৈরি ডেটা
             }
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error during JWT creation: {e.response.status_code} - {e.response.text}")
