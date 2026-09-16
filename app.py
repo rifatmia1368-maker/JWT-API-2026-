@@ -307,7 +307,7 @@ async def create_jwt(uid: str, password: str):
         })
         proto_bytes = await json_to_proto(body, LoginReq())
         payload = aes_cbc_encrypt(MAIN_KEY, MAIN_IV, proto_bytes)
-        url = "https://loginbp.ggblueshark.com/MajorLogin"
+        url = "https://loginbp.ppmainecoonghj.com/MajorLogin"
         headers = {
             'User-Agent': USERAGENT,
             'Connection': "Keep-Alive",
