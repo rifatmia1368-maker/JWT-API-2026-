@@ -203,7 +203,7 @@ except Exception as e:
     raise
 
 USERAGENT = "Dalvik/2.1.0 (Linux; U; Android 13; CPH2095 Build/RKQ1.211119.001)"
-RELEASEVERSION = "OB55"
+RELEASEVERSION = "OB54"
 
 app = Flask(__name__)
 
