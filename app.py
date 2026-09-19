@@ -202,8 +202,8 @@ except Exception as e:
     logger.error(f"Failed to decode MAIN_KEY or MAIN_IV: {e}")
     raise
 
-USERAGENT = "Dalvik/2.1.0 (Linux; U; Android 13; CPH2095 Build/RKQ1.211119.001)"
-RELEASEVERSION = "OB54"
+USERAGENT = "UnityPlayer/2022.3.47f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)"
+RELEASEVERSION = "OB55"
 
 app = Flask(__name__)
 
